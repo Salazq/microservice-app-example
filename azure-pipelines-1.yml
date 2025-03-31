@@ -1,8 +1,3 @@
-# Maven
-# Build your Java project and run tests with Apache Maven.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/java
-
 trigger:
 - master
 
@@ -15,21 +10,20 @@ steps:
     versionSpec: '8'
     jdkArchitectureOption: 'x64'
     jdkSourceOption: 'PreInstalled'
-    jdkFile: ''
-    jdkDestinationDirectory: ''
-    cleanDestinationDirectory: false
 
 - script: |
+    echo "Java version:"
+    java -version
     echo "Changing directory to users-api"
     cd users-api
-  displayName: 'Change to users-api directory'
+  displayName: 'Verify Java version and change directory'
 
 - task: Maven@3
   inputs:
     mavenPomFile: 'users-api/pom.xml'
     mavenOptions: '-Xmx3072m'
-    javaHomeOption: 'Path'
-    jdkDirectory: '/usr/lib/jvm/java-8-openjdk-amd64'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.8'  # This will use the installed OpenJDK 8
     jdkArchitectureOption: 'x64'
     publishJUnitResults: true
     testResultsFiles: '**/surefire-reports/TEST-*.xml'
