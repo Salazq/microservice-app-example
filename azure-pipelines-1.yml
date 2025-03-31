@@ -1,0 +1,36 @@
+# Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: JavaToolInstaller@0
+  inputs:
+    versionSpec: '8'
+    jdkArchitectureOption: 'x64'
+    jdkSourceOption: 'PreInstalled'
+    jdkFile: ''
+    jdkDestinationDirectory: ''
+    cleanDestinationDirectory: false
+
+- script: |
+    echo "Changing directory to users-api"
+    cd users-api
+  displayName: 'Change to users-api directory'
+
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'users-api/pom.xml'
+    mavenOptions: '-Xmx3072m'
+    javaHomeOption: 'Path'
+    jdkDirectory: '/usr/lib/jvm/java-8-openjdk-amd64'
+    jdkArchitectureOption: 'x64'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    goals: 'package'
