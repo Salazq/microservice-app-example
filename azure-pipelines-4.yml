@@ -1,0 +1,38 @@
+# Pipeline para TODO API Node.js con Redis
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  TODO_API_PORT: 8082
+  JWT_SECRET: PRFT
+  REDIS_HOST: localhost
+  REDIS_PORT: 6379
+  REDIS_CHANNEL: log_channel
+
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+  displayName: 'Instalar Node.js'
+
+- script: |
+    npm install
+    npm run build
+  displayName: 'Instalar dependencias y construir'
+
+- script: |
+    npm install -g redis-server
+    redis-server --daemonize yes
+  displayName: 'Configurar Redis'
+
+- script: |
+    cd todos-api
+    JWT_SECRET=PRFT TODO_API_PORT=8082 npm start
+  displayName: 'Iniciar aplicación'
+  env:
+    REDIS_HOST: $(REDIS_HOST)
+    REDIS_PORT: $(REDIS_PORT)
+    REDIS_CHANNEL: $(REDIS_CHANNEL)
