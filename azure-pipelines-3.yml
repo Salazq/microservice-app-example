@@ -12,15 +12,16 @@ variables:
 steps:
 - task: UsePythonVersion@0
   inputs:
-    versionSpec: '3.6'  # Versión más reciente recomendada
-  displayName: 'Use Python 3.6'
+    versionSpec: '3.8'  # Versión más antigua disponible en el agente
+    architecture: 'x64'
+  displayName: 'Use Python 3.8'
 
 - script: |
     python -m pip install --upgrade pip setuptools wheel
     pip install -r requirements.txt
   displayName: 'Install dependencies'
 
-# Paso opcional si necesitas Redis local
+# Paso opcional para Redis (si necesitas local)
 - script: |
     sudo apt-get update
     sudo apt-get install -y redis-server
