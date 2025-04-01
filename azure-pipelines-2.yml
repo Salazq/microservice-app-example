@@ -1,49 +1,39 @@
+# Go
+# Build your Go project.
+# Add steps that test, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/go
+# Template requirements: *.go and go.mod files in directory
+
 trigger:
 - master
 
 pool:
   vmImage: ubuntu-latest
 
+variables:
+  GOBIN: '$(system.defaultWorkingDirectory)/bin' # Go binaries path
+  GO_VERSION: '1.18.2' # Specific Go version
+
 steps:
-- task: NodeTool@0
+- task: GoTool@0
   inputs:
-    versionSpec: '14.x'
-  displayName: 'Install Node.js'
+    version: '$(GO_VERSION)'
+  displayName: 'Install Go $(GO_VERSION)'
 
 - script: |
-    sudo apt-get update
-    sudo apt-get install -y python2 openjdk-8-jdk
-  displayName: 'Install Python 2 and OpenJDK 8'
-
-- script: |
-    npm install
-    npm run build
-  displayName: 'npm install and build'
-
-- script: |
-    cd users-api
-    mvn package
-  displayName: 'Build users-api with Maven'
-
-- script: |
-    cd auth-api
-    mkdir -p "$(system.defaultWorkingDirectory)/bin"
-    echo "##vso[task.prependpath]$(system.defaultWorkingDirectory)/bin"
+    mkdir -p '$(GOBIN)'
+    echo '##vso[task.prependpath]$(GOBIN)'
   displayName: 'Set up the Go workspace'
 
 - script: |
     ls -la $(system.defaultWorkingDirectory)
   displayName: 'List files in the working directory'
 
-- task: GoTool@0
-  inputs:
-    version: '1.18.2'
-  displayName: 'Install Go 1.18.2'
-
 - script: |
     go version
+    cd auth-api || exit 1
     if [ ! -f go.mod ]; then
-        go mod init example.com/myproject # replace with your module path
+        go mod init github.com/Salazq/microservice-app-example/tree/master/auth-api
     fi
     go mod tidy
     go mod download
@@ -52,5 +42,5 @@ steps:
         dep ensure
     fi
     go build -v .
-  workingDirectory: '$(system.defaultWorkingDirectory)/auth-api'
-  displayName: 'Get dependencies, then build auth-api'
+  workingDirectory: '$(system.defaultWorkingDirectory)'
+  displayName: 'Get dependencies, then build'
