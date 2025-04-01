@@ -17,6 +17,7 @@ steps:
   displayName: 'Use Python 3.8'
 
 - script: |
+    cd log-message-processor
     python -m pip install --upgrade pip setuptools wheel
     pip install -r requirements.txt
   displayName: 'Install dependencies'
