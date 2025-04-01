@@ -1,0 +1,56 @@
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: '14.x'
+  displayName: 'Install Node.js'
+
+- script: |
+    sudo apt-get update
+    sudo apt-get install -y python2 openjdk-8-jdk
+  displayName: 'Install Python 2 and OpenJDK 8'
+
+- script: |
+    npm install
+    npm run build
+  displayName: 'npm install and build'
+
+- script: |
+    cd users-api
+    mvn package
+  displayName: 'Build users-api with Maven'
+
+- script: |
+    cd auth-api
+    mkdir -p "$(system.defaultWorkingDirectory)/bin"
+    echo "##vso[task.prependpath]$(system.defaultWorkingDirectory)/bin"
+  displayName: 'Set up the Go workspace'
+
+- script: |
+    ls -la $(system.defaultWorkingDirectory)
+  displayName: 'List files in the working directory'
+
+- task: GoTool@0
+  inputs:
+    version: '1.18.2'
+  displayName: 'Install Go 1.18.2'
+
+- script: |
+    go version
+    if [ ! -f go.mod ]; then
+        go mod init example.com/myproject # replace with your module path
+    fi
+    go mod tidy
+    go mod download
+    if [ -f Gopkg.toml ]; then
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+        dep ensure
+    fi
+    go build -v .
+  workingDirectory: '$(system.defaultWorkingDirectory)/auth-api'
+  displayName: 'Get dependencies, then build auth-api'
