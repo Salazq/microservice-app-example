@@ -1,0 +1,38 @@
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  REDIS_HOST: 127.0.0.1
+  REDIS_PORT: 6379
+  REDIS_CHANNEL: log_channel
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.6'  # Versión más reciente recomendada
+  displayName: 'Use Python 3.6'
+
+- script: |
+    python -m pip install --upgrade pip setuptools wheel
+    pip install -r requirements.txt
+  displayName: 'Install dependencies'
+
+# Paso opcional si necesitas Redis local
+- script: |
+    sudo apt-get update
+    sudo apt-get install -y redis-server
+    sudo service redis-server start
+    redis-cli ping
+  displayName: 'Install and start Redis'
+  condition: and(succeeded(), eq(variables['REDIS_HOST'], '127.0.0.1'))
+
+- script: |
+    python main.py
+  displayName: 'Run application'
+  env:
+    REDIS_HOST: $(REDIS_HOST)
+    REDIS_PORT: $(REDIS_PORT)
+    REDIS_CHANNEL: $(REDIS_CHANNEL)
