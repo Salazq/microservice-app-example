@@ -10,32 +10,48 @@ variables:
   REDIS_CHANNEL: log_channel
 
 steps:
+# 1. Instalar Python 3.8 (versión estable en el agente)
 - task: UsePythonVersion@0
   inputs:
-    versionSpec: '3.8'  # Versión más antigua disponible en el agente
+    versionSpec: '3.8'
     architecture: 'x64'
-  displayName: 'Use Python 3.8'
+  displayName: 'Install Python 3.8'
 
+# 2. Instalar dependencias
 - script: |
     cd log-message-processor
     python -m pip install --upgrade pip setuptools wheel
     pip install -r requirements.txt
-  displayName: 'Install dependencies'
+  displayName: 'Install Python dependencies'
 
-# Paso opcional para Redis (si necesitas local)
-- script: |
-    sudo apt-get update
-    sudo apt-get install -y redis-server
-    sudo service redis-server start
-    redis-cli ping
-  displayName: 'Install and start Redis'
-  condition: and(succeeded(), eq(variables['REDIS_HOST'], '127.0.0.1'))
-
+# 3. Instalar Redis 7.0 desde fuente (opcional, solo si necesitas Redis local)
 - script: |
     cd log-message-processor
-    python main.py
-  displayName: 'Run application'
+    sudo apt-get update
+    sudo apt-get install -y build-essential tcl
+    wget https://download.redis.io/releases/redis-7.0.0.tar.gz
+    tar xzf redis-7.0.0.tar.gz
+    cd redis-7.0.0
+    make -j$(nproc)
+    sudo make install
+    sudo redis-server --daemonize yes
+    redis-cli ping
+  displayName: 'Install Redis 7.0'
+  condition: and(succeeded(), eq(variables['REDIS_HOST'], '127.0.0.1'))
+
+# 4. Ejecutar la aplicación con timeout (para evitar bloqueos)
+- script: |
+    cd log-message-processor
+    timeout 300s python main.py
+  displayName: 'Run application (5min timeout)'
   env:
     REDIS_HOST: $(REDIS_HOST)
     REDIS_PORT: $(REDIS_PORT)
     REDIS_CHANNEL: $(REDIS_CHANNEL)
+
+# 5. (Opcional) Ver logs de Redis
+- script: |
+    cd log-message-processor
+    redis-cli monitor
+  displayName: 'Debug - Monitor Redis'
+  condition: always()  # Se ejecuta incluso si fallan pasos anteriores
