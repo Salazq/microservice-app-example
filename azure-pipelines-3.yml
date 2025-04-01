@@ -32,6 +32,7 @@ steps:
   condition: and(succeeded(), eq(variables['REDIS_HOST'], '127.0.0.1'))
 
 - script: |
+    cd log-message-processor
     python main.py
   displayName: 'Run application'
   env:
