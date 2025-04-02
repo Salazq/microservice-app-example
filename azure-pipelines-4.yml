@@ -19,11 +19,13 @@ steps:
   displayName: 'Instalar Node.js'
 
 - script: |
+    cd todos-api
     npm install
     npm run build
   displayName: 'Instalar dependencias y construir'
 
 - script: |
+    cd todos-api
     npm install -g redis-server
     redis-server --daemonize yes
   displayName: 'Configurar Redis'
