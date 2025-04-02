@@ -1,8 +1,9 @@
+# Pipeline para TODO API Node.js con Redis (Node 8.17.0)
 trigger:
 - master
 
 pool:
-  vmImage: 'ubuntu-16.04' # Older image that supports Node 8
+  vmImage: 'ubuntu-18.04' # Oldest currently supported Ubuntu image
 
 variables:
   TODO_API_PORT: 8082
@@ -12,21 +13,21 @@ variables:
   REDIS_CHANNEL: log_channel
 
 steps:
-- task: NodeTool@0
-  inputs:
-    versionSpec: '8.17.0'
-  displayName: 'Instalar Node.js 8.17.0'
+- script: |
+    curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+    sudo apt-get install -y nodejs=8.17.0-1nodesource1
+    sudo npm install -g npm@6.13.4
+    node -v
+    npm -v
+  displayName: 'Instalar Node.js 8.17.0 y npm 6.13.4'
 
 - script: |
-    sudo npm install -g npm@6.13.4
     cd todos-api
     npm install
     npm run build
-    # Removed npm run build since it's not defined in your project
   displayName: 'Instalar dependencias'
 
 - script: |
-    cd todos-api
     sudo apt-get update
     sudo apt-get install -y redis-server
     redis-server --daemonize yes
