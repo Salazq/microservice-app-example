@@ -1,4 +1,3 @@
-# Pipeline para TODO API Node.js con Redis (Node 8.17.0)
 trigger:
 - master
 
