@@ -42,16 +42,9 @@ steps:
 # 4. Ejecutar la aplicación con timeout (para evitar bloqueos)
 - script: |
     cd log-message-processor
-    timeout 300s python main.py
-  displayName: 'Run application (5min timeout)'
+    timeout 30s python main.py
+  displayName: 'Run application'
   env:
     REDIS_HOST: $(REDIS_HOST)
     REDIS_PORT: $(REDIS_PORT)
     REDIS_CHANNEL: $(REDIS_CHANNEL)
-
-# 5. (Opcional) Ver logs de Redis
-- script: |
-    cd log-message-processor
-    redis-cli monitor
-  displayName: 'Debug - Monitor Redis'
-  condition: always()  # Se ejecuta incluso si fallan pasos anteriores
