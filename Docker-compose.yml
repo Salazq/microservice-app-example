@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7.0
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  auth-api:
+    build:
+      context: ./auth-api
+    container_name: auth-api
+    environment:
+      - AUTH_API_PORT=8081
+      - JWT_SECRET=PRFT
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+
+  users-api:
+    build:
+      context: ./users-api
+    container_name: users-api
+    environment:
+      - SERVER_PORT=8083
+      - JWT_SECRET=PRFT
+    ports:
+      - "8083:8083"
+    depends_on:
+      - auth-api
+
+  todos-api:
+    build:
+      context: ./todos-api
+    container_name: todos-api
+    environment:
+      - TODO_API_PORT=8082
+      - JWT_SECRET=PRFT
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_CHANNEL=log_channel
+    ports:
+      - "8082:8082"
+    depends_on:
+      - redis
+      - auth-api
+
+  log-message-processor:
+    build:
+      context: ./log-message-processor
+    container_name: log-message-processor
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_CHANNEL=log_channel
+    depends_on:
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth-api
+      - users-api
+      - todos-api
