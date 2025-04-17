@@ -15,7 +15,7 @@ ENV TODO_API_PORT=8082
 ENV JWT_SECRET=defaultsecret
 ENV REDIS_HOST=localhost
 ENV REDIS_PORT=6379
-ENV REDIS_CHANNEL=todos_channel
+ENV REDIS_CHANNEL=log_channel
 
 # Exponer el puerto
 EXPOSE 8082
