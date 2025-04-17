@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Variables de entorno por defecto
+ENV REDIS_HOST=redis
+ENV REDIS_PORT=6379
+ENV REDIS_CHANNEL=log_channel
 
 
 # Comando por defecto

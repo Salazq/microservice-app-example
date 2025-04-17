@@ -9,6 +9,7 @@ services:
 
   zipkin:
     image: openzipkin/zipkin
+    container_name: zipkin
     networks:
       - app-network
     ports:
@@ -21,7 +22,7 @@ services:
     environment:
       - AUTH_API_PORT=8081
       - JWT_SECRET=PRFT
-      - ZIPKIN_URL=http://zipkin:9411
+      - ZIPKIN_URL=http://zipkin:9411/api/v2/spans
       - USERS_API_ADDRESS=http://users-api:8083
     ports:
       - "8081:8081"
@@ -54,7 +55,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_CHANNEL=log_channel
-      - ZIPKIN_URL=http://zipkin:9411
+      - ZIPKIN_URL=http://zipkin:9411/api/v2/spans
     ports:
       - "8082:8082"
     depends_on:
@@ -71,7 +72,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_CHANNEL=log_channel
-      - ZIPKIN_URL=http://zipkin:9411
+      - ZIPKIN_URL=http://zipkin:9411/api/v2/spans
     depends_on:
       - redis
     networks:
@@ -83,6 +84,10 @@ services:
     container_name: frontend
     ports:
       - "8080:8080"
+    environment:
+      - AUTH_API_ADDRESS=http://auth-api:8081/ 
+      - TODOS_API_ADDRESS=http://todos-api:8082/ 
+      - ZIPKIN_URL=http://zipkin:9411/api/v2/spans
     depends_on:
       - auth-api
       - users-api
@@ -93,3 +98,5 @@ services:
 networks:
   app-network:
     driver: bridge
+volumes:
+  redis-data:
