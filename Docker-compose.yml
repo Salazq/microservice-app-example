@@ -1,11 +1,18 @@
-version: '3.8'
-
 services:
   redis:
     image: redis:7.0
     container_name: redis
     ports:
       - "6379:6379"
+    networks:
+      - app-network
+
+  zipkin:
+    image: openzipkin/zipkin
+    networks:
+      - app-network
+    ports:
+      - "9411:9411"
 
   auth-api:
     build:
@@ -14,10 +21,14 @@ services:
     environment:
       - AUTH_API_PORT=8081
       - JWT_SECRET=PRFT
+      - ZIPKIN_URL=http://zipkin:9411
+      - USERS_API_ADDRESS=http://users-api:8083
     ports:
       - "8081:8081"
     depends_on:
       - redis
+    networks:
+      - app-network
 
   users-api:
     build:
@@ -30,6 +41,8 @@ services:
       - "8083:8083"
     depends_on:
       - auth-api
+    networks:
+      - app-network
 
   todos-api:
     build:
@@ -41,11 +54,14 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_CHANNEL=log_channel
+      - ZIPKIN_URL=http://zipkin:9411
     ports:
       - "8082:8082"
     depends_on:
       - redis
       - auth-api
+    networks:
+      - app-network
 
   log-message-processor:
     build:
@@ -55,8 +71,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_CHANNEL=log_channel
+      - ZIPKIN_URL=http://zipkin:9411
     depends_on:
       - redis
+    networks:
+      - app-network
 
   frontend:
     build:
@@ -68,3 +87,9 @@ services:
       - auth-api
       - users-api
       - todos-api
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
