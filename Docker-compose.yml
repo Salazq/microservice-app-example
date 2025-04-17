@@ -9,6 +9,7 @@ services:
 
   zipkin:
     image: openzipkin/zipkin
+    container_name: zipkin
     networks:
       - app-network
     ports:
