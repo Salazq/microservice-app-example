@@ -50,15 +50,20 @@ class TodoController {
         res.send()
     }
 
-    _logOperation (opName, username, todoId) {
+    _logOperation(opName, username, todoId) {
         this._tracer.scoped(() => {
             const traceId = this._tracer.id;
-            this._redisClient.publish(this._logChannel, JSON.stringify({
+            const mensaje = JSON.stringify({
                 zipkinSpan: traceId,
                 opName: opName,
                 username: username,
                 todoId: todoId,
-            }))
+            });
+    
+            // 👇 Agregado para depuración
+            console.log(`Publicando en Redis [canal: ${this._logChannel}]:`, mensaje);
+    
+            this._redisClient.publish(this._logChannel, mensaje);
         })
     }
 

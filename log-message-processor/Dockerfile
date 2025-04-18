@@ -16,7 +16,7 @@ COPY . .
 ENV REDIS_HOST=redis
 ENV REDIS_PORT=6379
 ENV REDIS_CHANNEL=log_channel
-
+ENV ZIPKIN_URL=http://zipkin:9411/api/v2/spans
 
 # Comando por defecto
 CMD ["python3", "main.py"]

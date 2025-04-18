@@ -77,6 +77,8 @@ services:
       - redis
     networks:
       - app-network
+    tty: true
+    stdin_open: true
 
   frontend:
     build:
@@ -100,3 +102,4 @@ networks:
     driver: bridge
 volumes:
   redis-data:
+
