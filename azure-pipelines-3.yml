@@ -14,38 +14,81 @@ variables:
   REDIS_PORT: 6379
   REDIS_CHANNEL: log_channel
 
-steps:
-# 1. Instalar Python 3.8 (versión estable en el agente)
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '3.8'
-    architecture: 'x64'
-  displayName: 'Install Python 3.8'
+stages:
+  - stage: Build_and_Test
+    displayName: 'Build & Test'
+    jobs:
+      - job: Install_and_Test
+        displayName: 'Build Job'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.8'
+              architecture: 'x64'
+            displayName: 'Install Python 3.8'
 
-# 2. Instalar dependencias
-- script: |
-    cd log-message-processor
-    python -m pip install --upgrade pip setuptools wheel
-    pip install -r requirements.txt
-  displayName: 'Install Python dependencies'
+          - script: |
+              cd log-message-processor
+              python -m pip install --upgrade pip setuptools wheel
+              pip install -r requirements.txt
+            displayName: 'Install Python dependencies'
 
-# 3. Instalar Redis 7.0 desde fuente (opcional, solo si necesitas Redis local)
-- script: |
-    cd log-message-processor
-    sudo apt-get update
-    sudo apt-get install -y build-essential tcl
-    wget https://download.redis.io/releases/redis-7.0.0.tar.gz
-    tar xzf redis-7.0.0.tar.gz
-    cd redis-7.0.0
-    make -j$(nproc)
-    sudo make install
-    sudo redis-server --daemonize yes
-    redis-cli ping
-  displayName: 'Install Redis 7.0'
-  condition: and(succeeded(), eq(variables['REDIS_HOST'], '127.0.0.1'))
+          - script: |
+              cd log-message-processor
+              sudo apt-get update
+              sudo apt-get install -y build-essential tcl
+              wget https://download.redis.io/releases/redis-7.0.0.tar.gz
+              tar xzf redis-7.0.0.tar.gz
+              cd redis-7.0.0
+              make -j$(nproc)
+              sudo make install
+              sudo redis-server --daemonize yes
+              redis-cli ping
+            displayName: 'Install Redis 7.0'
+            condition: and(succeeded(), eq(variables['REDIS_HOST'], '127.0.0.1'))
+            env:
+              REDIS_HOST: $(REDIS_HOST)
+              REDIS_PORT: $(REDIS_PORT)
+              REDIS_CHANNEL: $(REDIS_CHANNEL)
 
+  - stage: Deploy_to_VM
+    displayName: 'Desplegar en VM'
+    dependsOn: Build_and_Test
+    condition: succeeded()
+    jobs:
+      - job: Fetch_IP_and_SSH
+        displayName: 'Obtener IP y hacer deploy'
+        steps:
+          - task: AzureCLI@2
+            name: GetPublicIP
+            inputs:
+              azureSubscription: 'Azure for Students(bfc3d097-7e73-40b8-aa34-e70b307c0867)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                VM_NAME="vm-taller"
+                RESOURCE_GROUP="my-first-terraform-RG"
 
-  env:
-    REDIS_HOST: $(REDIS_HOST)
-    REDIS_PORT: $(REDIS_PORT)
-    REDIS_CHANNEL: $(REDIS_CHANNEL)
+                echo "Obteniendo IP pública de la VM..."
+                PUBLIC_IP=$(az vm show \
+                  --name "$VM_NAME" \
+                  --resource-group "$RESOURCE_GROUP" \
+                  --show-details \
+                  --query "publicIps" \
+                  --output tsv)
+
+                echo "##vso[task.setvariable variable=VM_PUBLIC_IP]$PUBLIC_IP"
+                echo "IP Pública: $PUBLIC_IP"
+            displayName: 'Obtener IP pública de la VM'
+
+          - task: SSH@0
+            displayName: 'Conectarse por SSH y desplegar'
+            inputs:
+              sshEndpoint: 'ssh-vm-taller'  # Nombre de tu SSH Service Connection
+              runOptions: 'inline'
+              inline: |
+                echo "Conectado a la VM"
+                cd /home/azureuser/microservice-app-example/log-message-processor
+                git pull origin master
+                docker compose down
+                docker compose up -d --build

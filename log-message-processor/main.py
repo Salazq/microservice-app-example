@@ -12,6 +12,8 @@ def log_message(message):
     time_delay = random.randrange(0, 2000)
     time.sleep(time_delay / 1000)
     print('message received after waiting for {}ms: {}'.format(time_delay, message))
+    print('Cambio1')
+    
 
 if __name__ == '__main__':
     redis_host = os.environ['REDIS_HOST']
