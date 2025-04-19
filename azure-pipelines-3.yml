@@ -84,7 +84,7 @@ stages:
               echo "Conectando por SSH con usuario y contraseña..."
 
               sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
-                cd /home/azureuser/microservice-app-example/log-message-processor
+                cd /home/azureuser/tu-repo/log-message-processor
                 git pull origin master
                 docker compose down
                 docker compose up -d --build
