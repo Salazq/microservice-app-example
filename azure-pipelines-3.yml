@@ -84,7 +84,7 @@ stages:
               echo "Conectando por SSH con usuario y contraseña..."
               sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
                 echo " Entrando al microservicio log-message-processor..."
-                cd /home/azureuser/microservice-app-example || exit 1
+                cd /home/azureuser/tu-repo/log-message-processor
                 sudo git pull origin master
 
                 echo "🧹 Eliminando contenedor si ya existe..."
