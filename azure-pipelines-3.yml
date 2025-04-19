@@ -44,7 +44,7 @@ steps:
   displayName: 'Install Redis 7.0'
   condition: and(succeeded(), eq(variables['REDIS_HOST'], '127.0.0.1'))
 
-  displayName: 'Run application'
+
   env:
     REDIS_HOST: $(REDIS_HOST)
     REDIS_PORT: $(REDIS_PORT)
