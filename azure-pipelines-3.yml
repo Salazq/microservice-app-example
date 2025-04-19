@@ -1,5 +1,10 @@
 trigger:
-- master
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - log-message-processor/**
 
 pool:
   vmImage: ubuntu-latest
@@ -39,10 +44,6 @@ steps:
   displayName: 'Install Redis 7.0'
   condition: and(succeeded(), eq(variables['REDIS_HOST'], '127.0.0.1'))
 
-# 4. Ejecutar la aplicación con timeout (para evitar bloqueos)
-- script: |
-    cd log-message-processor
-    timeout 30s python main.py
   displayName: 'Run application'
   env:
     REDIS_HOST: $(REDIS_HOST)
