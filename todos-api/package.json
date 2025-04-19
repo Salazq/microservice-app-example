@@ -4,7 +4,8 @@
   "description": "API for Todos in my little example app",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon server.js"
+    "start": "nodemon server.js",
+    "build": "echo 'No build step needed for todos-api'"
   },
   "author": "elgris <iddqd07@yandex.ru>",
   "license": "MIT",
