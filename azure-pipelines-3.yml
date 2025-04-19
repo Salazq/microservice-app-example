@@ -82,13 +82,27 @@ stages:
               sudo apt-get update && sudo apt-get install -y sshpass
 
               echo "Conectando por SSH con usuario y contraseña..."
-
               sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
-                cd /home/azureuser/tu-repo/log-message-processor
+                echo " Entrando al microservicio log-message-processor..."
+                cd /home/azureuser/microservice-app-example || exit 1
                 sudo git pull origin master
-                sudo docker compose down
-                sudo docker compose up -d --build
-              EOSSH
 
-              echo "Despliegue finalizado correctamente."
-            displayName: 'SSH con usuario y contraseña para desplegar'
+                echo "🧹 Eliminando contenedor si ya existe..."
+                sudo docker rm -f log-message-processor || true
+
+                echo " Construyendo imagen desde el Dockerfile..."
+                cd log-message-processor
+                sudo docker build -t log-message-processor .
+
+                echo "🚀 Ejecutando contenedor en modo detached..."
+                sudo docker run -d --restart unless-stopped \
+                  --name log-message-processor \
+                  -e REDIS_HOST=redis \
+                  -e REDIS_PORT=6379 \
+                  -e REDIS_CHANNEL=log_channel \
+                  -e ZIPKIN_URL=http://zipkin:9411/api/v2/spans \
+                  log-message-processor
+
+                echo " Despliegue finalizado correctamente en la VM."
+              EOSSH
+            displayName: 'SSH con usuario y contraseña para desplegar log-message-processor'
