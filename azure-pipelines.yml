@@ -1,5 +1,11 @@
 trigger:
-- master
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - frontend/**
+
 
 pool:
   vmImage: ubuntu-latest
