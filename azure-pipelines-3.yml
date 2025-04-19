@@ -13,13 +13,15 @@ variables:
   REDIS_HOST: 127.0.0.1
   REDIS_PORT: 6379
   REDIS_CHANNEL: log_channel
+  VM_USERNAME: azureuser
+  VM_PASSWORD: SuperSecret123!  # 🔐 reemplaza con la real
+  VM_NAME: vm-taller
+  RESOURCE_GROUP: my-first-terraform-RG
 
 stages:
   - stage: Build_and_Test
-    displayName: 'Build & Test'
     jobs:
-      - job: Install_and_Test
-        displayName: 'Build Job'
+      - job: InstallDeps
         steps:
           - task: UsePythonVersion@0
             inputs:
@@ -52,12 +54,10 @@ stages:
               REDIS_CHANNEL: $(REDIS_CHANNEL)
 
   - stage: Deploy_to_VM
-    displayName: 'Desplegar en VM'
     dependsOn: Build_and_Test
     condition: succeeded()
     jobs:
-      - job: Fetch_IP_and_SSH
-        displayName: 'Obtener IP y hacer deploy'
+      - job: Deploy
         steps:
           - task: AzureCLI@2
             name: GetPublicIP
@@ -66,29 +66,29 @@ stages:
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                VM_NAME="vm-taller"
-                RESOURCE_GROUP="my-first-terraform-RG"
-
-                echo "Obteniendo IP pública de la VM..."
                 PUBLIC_IP=$(az vm show \
-                  --name "$VM_NAME" \
-                  --resource-group "$RESOURCE_GROUP" \
+                  --name "$(VM_NAME)" \
+                  --resource-group "$(RESOURCE_GROUP)" \
                   --show-details \
                   --query "publicIps" \
                   --output tsv)
 
                 echo "##vso[task.setvariable variable=VM_PUBLIC_IP]$PUBLIC_IP"
-                echo "IP Pública: $PUBLIC_IP"
+                echo "IP pública obtenida: $PUBLIC_IP"
             displayName: 'Obtener IP pública de la VM'
 
-          - task: SSH@0
-            displayName: 'Conectarse por SSH y desplegar'
-            inputs:
-              sshEndpoint: 'ssh-vm-taller'  # Nombre de tu SSH Service Connection
-              runOptions: 'inline'
-              inline: |
-                echo "Conectado a la VM"
+          - script: |
+              echo "Instalando sshpass..."
+              sudo apt-get update && sudo apt-get install -y sshpass
+
+              echo "Conectando por SSH con usuario y contraseña..."
+
+              sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
                 cd /home/azureuser/microservice-app-example/log-message-processor
                 git pull origin master
                 docker compose down
                 docker compose up -d --build
+              EOSSH
+
+              echo "Despliegue finalizado correctamente."
+            displayName: 'SSH con usuario y contraseña para desplegar'
