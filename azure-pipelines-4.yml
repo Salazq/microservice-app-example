@@ -30,12 +30,6 @@ steps:
     npm run build
   displayName: 'Instalar dependencias y construir'
 
-
-
-- script: |
-    cd todos-api
-    JWT_SECRET=PRFT TODO_API_PORT=8082 npm start
-  displayName: 'Iniciar aplicación'
   env:
     REDIS_HOST: $(REDIS_HOST)
     REDIS_PORT: $(REDIS_PORT)
