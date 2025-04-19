@@ -1,6 +1,12 @@
 # Pipeline para TODO API Node.js con Redis
 trigger:
-- master
+  branches:
+    include:
+      - master
+    paths:
+      include:
+        - todos-api/**
+
 
 pool:
   vmImage: ubuntu-latest
