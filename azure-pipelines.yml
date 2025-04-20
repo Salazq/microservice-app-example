@@ -25,10 +25,6 @@ stages:
             inputs:
               versionSpec: '14.x'
             displayName: 'Install Node.js'
-          - script: |
-              sudo apt-get update
-              sudo apt-get install -y python2
-            displayName: 'Install Python 2'
 
           - script: |
               cd frontend
