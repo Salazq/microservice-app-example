@@ -10,36 +10,99 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  GOBIN: '$(system.defaultWorkingDirectory)/bin' # Go binaries path
-  GO_VERSION: '1.18.2' # Specific Go version
+  GOBIN: '$(system.defaultWorkingDirectory)/bin'
+  GO_VERSION: '1.18.2'
+  VM_USERNAME: azureuser
+  VM_PASSWORD: SuperSecret123!  # 🔐 reemplaza con la real
+  VM_NAME: vm-taller
+  RESOURCE_GROUP: my-first-terraform-RG
+  AUTH_API_PORT: 8081
+  JWT_SECRET: PRFT
+  USERS_API_ADDRESS: http://users-api:8083
+  ZIPKIN_URL: http://zipkin:9411/api/v2/spans
 
-steps:
-- task: GoTool@0
-  inputs:
-    version: '$(GO_VERSION)'
-  displayName: 'Install Go $(GO_VERSION)'
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildAuthAPI
+        steps:
+          - task: GoTool@0
+            inputs:
+              version: '$(GO_VERSION)'
+            displayName: 'Install Go $(GO_VERSION)'
 
-- script: |
-    mkdir -p '$(GOBIN)'
-    echo '##vso[task.prependpath]$(GOBIN)'
-  displayName: 'Set up the Go workspace'
+          - script: |
+              mkdir -p '$(GOBIN)'
+              echo '##vso[task.prependpath]$(GOBIN)'
+            displayName: 'Set up the Go workspace'
 
-- script: |
-    ls -la $(system.defaultWorkingDirectory)
-  displayName: 'List files in the working directory'
+          - script: |
+              ls -la $(system.defaultWorkingDirectory)
+            displayName: 'List files in the working directory'
 
-- script: |
-    go version
-    cd auth-api || exit 1
-    if [ ! -f go.mod ]; then
-        go mod init github.com/Salazq/microservice-app-example/tree/master/auth-api
-    fi
-    go mod tidy
-    go mod download
-    if [ -f Gopkg.toml ]; then
-        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        dep ensure
-    fi
-    go build -v .
-  workingDirectory: '$(system.defaultWorkingDirectory)'
-  displayName: 'Get dependencies, then build'
+          - script: |
+              go version
+              cd auth-api || exit 1
+              if [ ! -f go.mod ]; then
+                  go mod init github.com/Salazq/microservice-app-example/tree/master/auth-api
+              fi
+              go mod tidy
+              go mod download
+              go build -v .
+            workingDirectory: '$(system.defaultWorkingDirectory)'
+            displayName: 'Build the auth-api service'
+
+  - stage: Deploy
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: DeployToVM
+        steps:
+          - task: AzureCLI@2
+            name: GetPublicIP
+            inputs:
+              azureSubscription: 'Azure for Students(bfc3d097-7e73-40b8-aa34-e70b307c0867)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                PUBLIC_IP=$(az vm show \
+                  --name "$(VM_NAME)" \
+                  --resource-group "$(RESOURCE_GROUP)" \
+                  --show-details \
+                  --query "publicIps" \
+                  --output tsv)
+
+                echo "##vso[task.setvariable variable=VM_PUBLIC_IP]$PUBLIC_IP"
+                echo "IP pública obtenida: $PUBLIC_IP"
+            displayName: 'Obtener IP pública de la VM'
+
+          - script: |
+              echo "Instalando sshpass..."
+              sudo apt-get update && sudo apt-get install -y sshpass
+
+              echo "Conectando por SSH..."
+              sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
+                echo "Entrando al microservicio auth-api..."
+                cd /home/azureuser/tu-repo/auth-api
+                sudo git pull origin master
+
+                echo " Eliminando contenedor si ya existe..."
+                sudo docker rm -f auth-api || true
+
+                echo "Construyendo imagen..."
+                sudo docker build -t auth-api .
+
+                echo " Ejecutando contenedor..."
+                sudo docker run -d --restart unless-stopped \
+                  --name auth-api \
+                  --network tu-repo_app-network \
+                  -p 8081:8081 \
+                  -e AUTH_API_PORT=$(AUTH_API_PORT) \
+                  -e JWT_SECRET=$(JWT_SECRET) \
+                  -e ZIPKIN_URL=$(ZIPKIN_URL) \
+                  -e USERS_API_ADDRESS=$(USERS_API_ADDRESS) \
+                  auth-api
+
+                echo "Despliegue de auth-api completado."
+              EOSSH
+            displayName: 'Desplegar auth-api en VM via SSH'
