@@ -1,3 +1,4 @@
+# Este archivo es un ejemplo de pipeline de Azure DevOps para desplegar un frontend en una VM de Azure.
 trigger:
   branches:
     include:
@@ -6,24 +7,87 @@ trigger:
     include:
       - frontend/**
 
-
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- task: NodeTool@0
-  inputs:
-    versionSpec: '14.x'
-  displayName: 'Install Node.js'
+variables:
+  VM_USERNAME: azureuser
+  VM_PASSWORD: SuperSecret123!  # 🔐 reemplazar por la real
+  VM_NAME: vm-taller
+  RESOURCE_GROUP: my-first-terraform-RG
 
+stages:
+  - stage: Build_and_Test
+    jobs:
+      - job: BuildFrontend
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '14.x'
+            displayName: 'Install Node.js'
+          - script: |
+              sudo apt-get update
+              sudo apt-get install -y python2
+          displayName: 'Install Python 2'
 
-- script: |
-    sudo apt-get update
-    sudo apt-get install -y python2
-  displayName: 'Install Python 2'
+          - script: |
+              cd frontend
+              npm install
+              npm run build
+            displayName: 'npm install and build frontend'
 
-- script: |
-    cd frontend
-    npm install
-    npm run build
-  displayName: 'npm install and build'
+  - stage: Deploy_to_VM
+    dependsOn: Build_and_Test
+    condition: succeeded()
+    jobs:
+      - job: DeployFrontend
+        steps:
+          - task: AzureCLI@2
+            name: GetPublicIP
+            inputs:
+              azureSubscription: 'Azure for Students(bfc3d097-7e73-40b8-aa34-e70b307c0867)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                PUBLIC_IP=$(az vm show \
+                  --name "$(VM_NAME)" \
+                  --resource-group "$(RESOURCE_GROUP)" \
+                  --show-details \
+                  --query "publicIps" \
+                  --output tsv)
+
+                echo "##vso[task.setvariable variable=VM_PUBLIC_IP]$PUBLIC_IP"
+                echo "IP pública obtenida: $PUBLIC_IP"
+            displayName: 'Obtener IP pública de la VM'
+
+          - script: |
+              echo "Instalando sshpass..."
+              sudo apt-get update && sudo apt-get install -y sshpass
+
+              echo "Conectando por SSH con usuario y contraseña..."
+              sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
+                echo "Entrando al microservicio frontend..."
+                cd /home/azureuser/tu-repo/frontend
+                sudo git pull origin master
+
+                echo "🧹 Eliminando contenedor si ya existe..."
+                sudo docker rm -f frontend || true
+
+                echo "Construyendo imagen desde el Dockerfile..."
+                cd frontend
+                sudo docker build -t frontend .
+
+                echo "🚀 Ejecutando contenedor en modo detached..."
+                sudo docker run -d --restart unless-stopped \
+                  --name frontend \
+                  --network tu-repo_app-network \
+                  -p 8080:8080 \
+                  -e AUTH_API_ADDRESS=http://auth-api:8081/ \
+                  -e TODOS_API_ADDRESS=http://todos-api:8082/ \
+                  -e ZIPKIN_URL=http://zipkin:9411/api/v2/spans \
+                  frontend
+
+                echo "Frontend desplegado correctamente en la VM."
+              EOSSH
+            displayName: 'SSH para desplegar frontend'
+
