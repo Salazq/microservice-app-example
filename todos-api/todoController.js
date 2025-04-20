@@ -61,7 +61,7 @@ class TodoController {
             });
     
             // 👇 Agregado para depuración
-            console.log(`Publicando en Redis [canal: ${this._logChannel}]:`, mensaje);
+            console.log(`hola mi gente Publicando en Redis [canal: ${this._logChannel}]:`, mensaje);
     
             this._redisClient.publish(this._logChannel, mensaje);
         })
