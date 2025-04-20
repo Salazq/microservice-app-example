@@ -23,12 +23,12 @@ stages:
         steps:
           - task: NodeTool@0
             inputs:
-              versionSpec: '14.x'
+              versionSpec: '8.17.0'
             displayName: 'Install Node.js'
 
           - script: |
               cd frontend
-              npm install
+              npm install --no optionals
               npm run build
             displayName: 'npm install and build frontend'
 
