@@ -76,7 +76,7 @@ stages:
               sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
                 echo "📦 Entrando a users-api..."
                 cd /home/azureuser/tu-repo/users-api
-                git pull origin master
+                sudo git pull origin master
 
                 echo "🧼 Deteniendo y eliminando contenedor existente..."
                 sudo docker rm -f users-api || true
