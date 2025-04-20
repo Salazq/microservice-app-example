@@ -28,7 +28,7 @@ stages:
           - script: |
               sudo apt-get update
               sudo apt-get install -y python2
-          displayName: 'Install Python 2'
+            displayName: 'Install Python 2'
 
           - script: |
               cd frontend
