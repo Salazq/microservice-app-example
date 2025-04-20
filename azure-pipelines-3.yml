@@ -98,6 +98,8 @@ stages:
                 sudo docker run -d --restart unless-stopped \
                   --name log-message-processor \
                   --network tu-repo_app-network \
+                  --tty \
+                  --interactive \
                   -e REDIS_HOST=redis \
                   -e REDIS_PORT=6379 \
                   -e REDIS_CHANNEL=log_channel \
