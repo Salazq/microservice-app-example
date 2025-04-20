@@ -9,27 +9,90 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- task: JavaToolInstaller@0
-  inputs:
-    versionSpec: '8'
-    jdkArchitectureOption: 'x64'
-    jdkSourceOption: 'PreInstalled'
+variables:
+  VM_USERNAME: azureuser
+  VM_PASSWORD: SuperSecret123!  # ⚠️ Reemplázalo con la real
+  VM_NAME: vm-taller
+  RESOURCE_GROUP: my-first-terraform-RG
 
-- script: |
-    echo "Java version:"
-    java -version
-    echo "Changing directory to users-api"
-    cd users-api
-  displayName: 'Verify Java version and change directory'
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildWithMaven
+        steps:
+          - task: JavaToolInstaller@0
+            inputs:
+              versionSpec: '8'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
 
-- task: Maven@3
-  inputs:
-    mavenPomFile: 'users-api/pom.xml'
-    mavenOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.8'  # This will use the installed OpenJDK 8
-    jdkArchitectureOption: 'x64'
-    publishJUnitResults: true
-    testResultsFiles: '**/surefire-reports/TEST-*.xml'
-    goals: 'package'
+          - script: |
+              echo "Java version:"
+              java -version
+              echo "Changing directory to users-api"
+              cd users-api
+            displayName: 'Verificar versión de Java y cambiar de carpeta'
+
+          - task: Maven@3
+            inputs:
+              mavenPomFile: 'users-api/pom.xml'
+              mavenOptions: '-Xmx3072m'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '1.8'
+              jdkArchitectureOption: 'x64'
+              publishJUnitResults: true
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+              goals: 'package'
+
+  - stage: Deploy_to_VM
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: Deploy
+        steps:
+          - task: AzureCLI@2
+            name: GetPublicIP
+            inputs:
+              azureSubscription: 'Azure for Students(bfc3d097-7e73-40b8-aa34-e70b307c0867)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                PUBLIC_IP=$(az vm show \
+                  --name "$(VM_NAME)" \
+                  --resource-group "$(RESOURCE_GROUP)" \
+                  --show-details \
+                  --query "publicIps" \
+                  --output tsv)
+
+                echo "##vso[task.setvariable variable=VM_PUBLIC_IP]$PUBLIC_IP"
+                echo "IP pública obtenida: $PUBLIC_IP"
+            displayName: 'Obtener IP pública de la VM'
+
+          - script: |
+              echo "Instalando sshpass..."
+              sudo apt-get update && sudo apt-get install -y sshpass
+
+              echo "Conectando por SSH con usuario y contraseña..."
+              sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
+                echo "📦 Entrando a users-api..."
+                cd /home/azureuser/tu-repo/users-api
+                git pull origin master
+
+                echo "🧼 Deteniendo y eliminando contenedor existente..."
+                sudo docker rm -f users-api || true
+
+                echo "🐳 Construyendo imagen..."
+                sudo docker build -t users-api .
+
+                echo "🚀 Ejecutando contenedor..."
+                sudo docker run -d --restart unless-stopped \
+                  --name users-api \
+                  --network tu-repo_app-network \
+                  -p 8083:8083 \
+                  -e SERVER_PORT=8083 \
+                  -e JWT_SECRET=PRFT \
+                  users-api
+
+                echo "✅ Despliegue completado para users-api"
+              EOSSH
+            displayName: 'SSH para desplegar users-api en la VM'
