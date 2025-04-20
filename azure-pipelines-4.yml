@@ -1,4 +1,3 @@
-# Pipeline para TODO API Node.js con Redis
 trigger:
   branches:
     include:
@@ -7,30 +6,93 @@ trigger:
     include:
       - todos-api/**
 
-
 pool:
   vmImage: ubuntu-latest
 
 variables:
   TODO_API_PORT: 8082
   JWT_SECRET: PRFT
-  REDIS_HOST: localhost
+  REDIS_HOST: redis
   REDIS_PORT: 6379
   REDIS_CHANNEL: log_channel
+  ZIPKIN_URL: http://zipkin:9411/api/v2/spans
+  VM_USERNAME: azureuser
+  VM_PASSWORD: SuperSecret123!  # 🔐 reemplazar con la real
+  VM_NAME: vm-taller
+  RESOURCE_GROUP: my-first-terraform-RG
 
-steps:
-- task: NodeTool@0
-  inputs:
-    versionSpec: '8.x'
-  displayName: 'Instalar Node.js'
+stages:
+  - stage: Build_and_Test
+    jobs:
+      - job: InstallDeps
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '8.x'  # o '16.x' si estás usando esa
+            displayName: 'Instalar Node.js'
 
-- script: |
-    cd todos-api
-    npm install
-    npm run build
-  displayName: 'Instalar dependencias y construir'
+          - script: |
+              cd todos-api
+              npm install
+              npm run build
+            displayName: 'Instalar dependencias y construir'
 
-  env:
-    REDIS_HOST: $(REDIS_HOST)
-    REDIS_PORT: $(REDIS_PORT)
-    REDIS_CHANNEL: $(REDIS_CHANNEL)
+  - stage: Deploy_to_VM
+    dependsOn: Build_and_Test
+    condition: succeeded()
+    jobs:
+      - job: Deploy
+        steps:
+          - task: AzureCLI@2
+            name: GetPublicIP
+            inputs:
+              azureSubscription: 'Azure for Students(bfc3d097-7e73-40b8-aa34-e70b307c0867)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                PUBLIC_IP=$(az vm show \
+                  --name "$(VM_NAME)" \
+                  --resource-group "$(RESOURCE_GROUP)" \
+                  --show-details \
+                  --query "publicIps" \
+                  --output tsv)
+
+                echo "##vso[task.setvariable variable=VM_PUBLIC_IP]$PUBLIC_IP"
+                echo "IP pública obtenida: $PUBLIC_IP"
+            displayName: 'Obtener IP pública de la VM'
+
+          - script: |
+              echo "Instalando sshpass..."
+              sudo apt-get update && sudo apt-get install -y sshpass
+
+              echo "Conectando por SSH con usuario y contraseña..."
+              sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
+                echo " Entrando al microservicio todos-api..."
+                cd /home/azureuser/tu-repo/todos-api
+                sudo git pull origin master
+
+                echo "🧹 Eliminando contenedor si ya existe..."
+                sudo docker rm -f todos-api || true
+
+                echo " Construyendo imagen desde el Dockerfile..."
+                cd todos-api
+                sudo docker build -t todos-api .
+
+                echo "🚀 Ejecutando contenedor en modo detached..."
+                sudo docker run -d --restart unless-stopped \
+                  --name todos-api \
+                  --network tu-repo_app-network \
+                  --tty \
+                  --interactive \
+                  -p 8082:8082 \
+                  -e TODO_API_PORT=8082 \
+                  -e JWT_SECRET=PRFT \
+                  -e REDIS_HOST=redis \
+                  -e REDIS_PORT=6379 \
+                  -e REDIS_CHANNEL=log_channel \
+                  -e ZIPKIN_URL=http://zipkin:9411/api/v2/spans \
+                  todos-api
+
+                echo "✅ Despliegue finalizado correctamente en la VM."
+              EOSSH
+            displayName: 'SSH con usuario y contraseña para desplegar todos-api'
