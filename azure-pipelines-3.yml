@@ -10,13 +10,7 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  REDIS_HOST: 127.0.0.1
-  REDIS_PORT: 6379
-  REDIS_CHANNEL: log_channel
-  VM_USERNAME: azureuser
-  VM_PASSWORD: SuperSecret123!  # 🔐 reemplaza con la real
-  VM_NAME: vm-taller
-  RESOURCE_GROUP: my-first-terraform-RG
+  - group: variable-group-taller
 
 stages:
   - stage: Build_and_Test
@@ -81,31 +75,20 @@ stages:
               echo "Instalando sshpass..."
               sudo apt-get update && sudo apt-get install -y sshpass
 
-              echo "Conectando por SSH con usuario y contraseña..."
-              sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
-                echo " Entrando al microservicio log-message-processor..."
-                cd /home/azureuser/tu-repo/log-message-processor
+              echo "Conectando por SSH..."
+              sshpass -p $(VM_PASSWORD) ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
+                echo "Entrando al repositorio..."
+                cd /home/azureuser/tu-repo
                 sudo git pull origin master
 
-                echo "🧹 Eliminando contenedor si ya existe..."
-                sudo docker rm -f log-message-processor || true
+                echo "Deteniendo el servicio log-message-processor si ya existe..."
+                sudo docker-compose -f Docker-compose.yml stop log-message-processor || true
+                sudo docker-compose -f Docker-compose.yml rm -f log-message-processor || true
 
-                echo " Construyendo imagen desde el Dockerfile..."
-                cd log-message-processor
-                sudo docker build -t log-message-processor .
+                echo "Reconstruyendo y levantando solo el servicio auth-api..."
+                sudo docker-compose -f Docker-compose.yml build log-message-processor
+                sudo docker-compose -f Docker-compose.yml up -d log-message-processor
 
-                echo "🚀 Ejecutando contenedor en modo detached..."
-                sudo docker run -d --restart unless-stopped \
-                  --name log-message-processor \
-                  --network tu-repo_app-network \
-                  --tty \
-                  --interactive \
-                  -e REDIS_HOST=redis \
-                  -e REDIS_PORT=6379 \
-                  -e REDIS_CHANNEL=log_channel \
-                  -e ZIPKIN_URL=http://zipkin:9411/api/v2/spans \
-                  log-message-processor
-
-                echo " Despliegue finalizado correctamente en la VM."
+                echo "log-message-processor desplegado correctamente en la VM usando docker-compose."
               EOSSH
-            displayName: 'SSH con usuario y contraseña para desplegar log-message-processor'
+            displayName: 'SSH para desplegar log-message-processor con docker-compose'
