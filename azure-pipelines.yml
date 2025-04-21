@@ -64,12 +64,13 @@ stages:
                 sudo git pull origin master
 
                 echo "Deteniendo el servicio frontend si ya existe..."
-                sudo docker-compose stop frontend
-                sudo docker-compose rm -f frontend
+                sudo docker-compose -f Docker-compose.yml stop frontend || true
+                sudo docker-compose -f Docker-compose.yml rm -f frontend || true
 
                 echo "Reconstruyendo y levantando solo el servicio frontend..."
                 sudo docker-compose build frontend
-                sudo docker-compose up -d frontend
+                sudo docker-compose -f Docker-compose.yml build -d frontend
+                sudo docker-compose -f Docker-compose.yml up -d frontend
 
                 echo "Frontend desplegado correctamente en la VM usando docker-compose."
               EOSSH
