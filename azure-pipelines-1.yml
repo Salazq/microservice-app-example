@@ -10,10 +10,7 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  VM_USERNAME: azureuser
-  VM_PASSWORD: SuperSecret123!  # ⚠️ Reemplázalo con la real
-  VM_NAME: vm-taller
-  RESOURCE_GROUP: my-first-terraform-RG
+  - group: variable-group-taller
 
 stages:
   - stage: Build
@@ -53,7 +50,7 @@ stages:
           - task: AzureCLI@2
             name: GetPublicIP
             inputs:
-              azureSubscription: 'Azure for Students(bfc3d097-7e73-40b8-aa34-e70b307c0867)'
+              azureSubscription: $(AZURE_ACCOUNT)
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -73,26 +70,19 @@ stages:
               sudo apt-get update && sudo apt-get install -y sshpass
 
               echo "Conectando por SSH con usuario y contraseña..."
-              sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
-                echo "📦 Entrando a users-api..."
-                cd /home/azureuser/tu-repo/users-api
+              sshpass -p $(VM_PASSWORD) ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
+                echo "Entrando al repositorio..."
+                cd /home/azureuser/tu-repo
                 sudo git pull origin master
 
-                echo "🧼 Deteniendo y eliminando contenedor existente..."
-                sudo docker rm -f users-api || true
+                echo "Deteniendo el servicio users-api si ya existe..."
+                sudo docker-compose -f Docker-compose.yml stop users-api || true
+                sudo docker-compose -f Docker-compose.yml rm -f users-api || true
 
-                echo "🐳 Construyendo imagen..."
-                sudo docker build -t users-api .
+                echo "Reconstruyendo y levantando solo el servicio users-api..."
+                sudo docker-compose -f Docker-compose.yml build users-api
+                sudo docker-compose -f Docker-compose.yml up -d users-api
 
-                echo "🚀 Ejecutando contenedor..."
-                sudo docker run -d --restart unless-stopped \
-                  --name users-api \
-                  --network tu-repo_app-network \
-                  -p 8083:8083 \
-                  -e SERVER_PORT=8083 \
-                  -e JWT_SECRET=PRFT \
-                  users-api
-
-                echo "✅ Despliegue completado para users-api"
+                echo "Users-API desplegado correctamente en la VM usando docker-compose."
               EOSSH
-            displayName: 'SSH para desplegar users-api en la VM'
+            displayName: 'SSH para desplegar users-api con docker-compose'

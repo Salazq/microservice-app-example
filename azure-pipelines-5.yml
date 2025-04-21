@@ -1,11 +1,10 @@
-# Pipeline de Azure DevOps para desplegar frontend en una VM de Azure.
 trigger:
   branches:
     include:
       - master
   paths:
     include:
-      - frontend/**
+      - nginx/**
 
 pool:
   vmImage: ubuntu-latest
@@ -14,26 +13,10 @@ variables:
   - group: variable-group-taller
 
 stages:
-  - stage: Build_and_Test
-    jobs:
-      - job: BuildFrontend
-        steps:
-          - task: NodeTool@0
-            inputs:
-              versionSpec: '8.17.0'
-            displayName: 'Install Node.js'
-
-          - script: |
-              cd frontend
-              npm install --no optionals
-              npm run build
-            displayName: 'npm install and build frontend'
-
-  - stage: Deploy_to_VM
-    dependsOn: Build_and_Test
+  - stage: Deploy
     condition: succeeded()
     jobs:
-      - job: DeployFrontend
+      - job: DeployToVM
         steps:
           - task: AzureCLI@2
             name: GetPublicIP
@@ -57,21 +40,20 @@ stages:
               echo "Instalando sshpass..."
               sudo apt-get update && sudo apt-get install -y sshpass
 
-              echo "Conectando por SSH con usuario y contraseña... $(VM_PASSWORD) ,$(VM_USERNAME) "
+              echo "Conectando por SSH..."
               sshpass -p $(VM_PASSWORD) ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
                 echo "Entrando al repositorio..."
                 cd /home/azureuser/tu-repo
                 sudo git pull origin master
 
-                echo "Deteniendo el servicio frontend si ya existe..."
-                sudo docker-compose -f Docker-compose.yml stop frontend || true
-                sudo docker-compose -f Docker-compose.yml rm -f frontend || true
+                echo "Deteniendo el servicio nginx-gateway si ya existe..."
+                sudo docker-compose -f Docker-compose.yml stop nginx || true
+                sudo docker-compose -f Docker-compose.yml rm -f nginx || true
 
-                echo "Reconstruyendo y levantando solo el servicio frontend..."
-                sudo docker-compose -f Docker-compose.yml build -d frontend
-                sudo docker-compose -f Docker-compose.yml up -d frontend
+                echo "Reconstruyendo y levantando solo el servicio nginx-gateway..."
+                sudo docker-compose -f Docker-compose.yml build nginx
+                sudo docker-compose -f Docker-compose.yml up -d nginx
 
-                echo "Frontend desplegado correctamente en la VM usando docker-compose."
+                echo "nginx-gateway desplegado correctamente en la VM usando docker-compose."
               EOSSH
-            displayName: 'SSH para desplegar frontend con docker-compose'
-
+            displayName: 'SSH para desplegar nginx-gateway con docker-compose'
