@@ -47,12 +47,12 @@ stages:
                 sudo git pull origin master
 
                 echo "Deteniendo el servicio nginx-gateway si ya existe..."
-                sudo docker-compose -f Docker-compose.yml stop nginx-gateway || true
-                sudo docker-compose -f Docker-compose.yml rm -f nginx-gateway || true
+                sudo docker-compose -f Docker-compose.yml stop nginx || true
+                sudo docker-compose -f Docker-compose.yml rm -f nginx || true
 
                 echo "Reconstruyendo y levantando solo el servicio nginx-gateway..."
-                sudo docker-compose -f Docker-compose.yml build nginx-gateway
-                sudo docker-compose -f Docker-compose.yml up -d nginx-gateway
+                sudo docker-compose -f Docker-compose.yml build nginx
+                sudo docker-compose -f Docker-compose.yml up -d nginx
 
                 echo "nginx-gateway desplegado correctamente en la VM usando docker-compose."
               EOSSH
