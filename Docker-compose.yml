@@ -87,13 +87,29 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - AUTH_API_ADDRESS=http://auth-api:8081/ 
-      - TODOS_API_ADDRESS=http://todos-api:8082/ 
-      - ZIPKIN_URL=http://zipkin:9411/api/v2/spans
+      - AUTH_API_ADDRESS=http://nginx:80
+      - TODOS_API_ADDRESS=http://nginx:80
+      - ZIPKIN_URL=http://nginx:80/zipkin
     depends_on:
       - auth-api
       - users-api
       - todos-api
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx-gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - frontend
+      - auth-api
+      - todos-api
+      - users-api
+      - zipkin
     networks:
       - app-network
 
@@ -102,4 +118,3 @@ networks:
     driver: bridge
 volumes:
   redis-data:
-
