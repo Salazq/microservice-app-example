@@ -57,7 +57,7 @@ stages:
               echo "Instalando sshpass..."
               sudo apt-get update && sudo apt-get install -y sshpass
 
-              echo "Conectando por SSH con usuario y contraseña..."
+              echo "Conectando por SSH con usuario y contraseña... $(VM_PASSWORD) ,$(VM_USERNAME) "
               sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
                 echo "Entrando al repositorio..."
                 cd /home/azureuser/tu-repo
