@@ -10,16 +10,7 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  TODO_API_PORT: 8082
-  JWT_SECRET: PRFT
-  REDIS_HOST: redis
-  REDIS_PORT: 6379
-  REDIS_CHANNEL: log_channel
-  ZIPKIN_URL: http://zipkin:9411/api/v2/spans
-  VM_USERNAME: azureuser
-  VM_PASSWORD: SuperSecret123!  # 🔐 reemplazar con la real
-  VM_NAME: vm-taller
-  RESOURCE_GROUP: my-first-terraform-RG
+  - group: variable-group-taller
 
 stages:
   - stage: Build_and_Test
@@ -28,7 +19,7 @@ stages:
         steps:
           - task: NodeTool@0
             inputs:
-              versionSpec: '8.x'  # o '16.x' si estás usando esa
+              versionSpec: '8.x'
             displayName: 'Instalar Node.js'
 
           - script: |
@@ -46,7 +37,7 @@ stages:
           - task: AzureCLI@2
             name: GetPublicIP
             inputs:
-              azureSubscription: 'Azure for Students(bfc3d097-7e73-40b8-aa34-e70b307c0867)'
+              azureSubscription: $(AZURE_ACCOUNT)
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -66,33 +57,19 @@ stages:
               sudo apt-get update && sudo apt-get install -y sshpass
 
               echo "Conectando por SSH con usuario y contraseña..."
-              sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
-                echo " Entrando al microservicio todos-api..."
-                cd /home/azureuser/tu-repo/todos-api
+              sshpass -p $(VM_PASSWORD) ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
+                echo "Entrando al repositorio..."
+                cd /home/azureuser/tu-repo
                 sudo git pull origin master
 
-                echo "🧹 Eliminando contenedor si ya existe..."
-                sudo docker rm -f todos-api || true
+                echo "Deteniendo el servicio todos-api si ya existe..."
+                sudo docker-compose -f Docker-compose.yml stop todos-api || true
+                sudo docker-compose -f Docker-compose.yml rm -f todos-api || true
 
-                echo " Construyendo imagen desde el Dockerfile..."
-                cd todos-api
-                sudo docker build -t todos-api .
+                echo "Reconstruyendo y levantando solo el servicio todos-api..."
+                sudo docker-compose -f Docker-compose.yml build todos-api
+                sudo docker-compose -f Docker-compose.yml up -d todos-api
 
-                echo "🚀 Ejecutando contenedor en modo detached..."
-                sudo docker run -d --restart unless-stopped \
-                  --name todos-api \
-                  --network tu-repo_app-network \
-                  --tty \
-                  --interactive \
-                  -p 8082:8082 \
-                  -e TODO_API_PORT=8082 \
-                  -e JWT_SECRET=PRFT \
-                  -e REDIS_HOST=redis \
-                  -e REDIS_PORT=6379 \
-                  -e REDIS_CHANNEL=log_channel \
-                  -e ZIPKIN_URL=http://zipkin:9411/api/v2/spans \
-                  todos-api
-
-                echo "✅ Despliegue finalizado correctamente en la VM."
+                echo "Todos-API desplegado correctamente en la VM usando docker-compose."
               EOSSH
-            displayName: 'SSH con usuario y contraseña para desplegar todos-api'
+            displayName: 'SSH para desplegar todos-api con docker-compose'
