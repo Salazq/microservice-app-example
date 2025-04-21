@@ -1,4 +1,4 @@
-# Este archivo es un ejemplo de pipeline de Azure DevOps para desplegar un frontend en una VM de Azure.
+# Pipeline de Azure DevOps para desplegar frontend en una VM de Azure.
 trigger:
   branches:
     include:
@@ -11,10 +11,7 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  VM_USERNAME: azureuser
-  VM_PASSWORD: SuperSecret123!  # 🔐 reemplazar por la real
-  VM_NAME: vm-taller
-  RESOURCE_GROUP: my-first-terraform-RG
+  - group: variable-group-taller
 
 stages:
   - stage: Build_and_Test
@@ -41,7 +38,7 @@ stages:
           - task: AzureCLI@2
             name: GetPublicIP
             inputs:
-              azureSubscription: 'Azure for Students(bfc3d097-7e73-40b8-aa34-e70b307c0867)'
+              azureSubscription: $(AZURE_ACCOUNT)
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -62,28 +59,19 @@ stages:
 
               echo "Conectando por SSH con usuario y contraseña..."
               sshpass -p "$(VM_PASSWORD)" ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
-                echo "Entrando al microservicio frontend..."
-                cd /home/azureuser/tu-repo/frontend
+                echo "Entrando al repositorio..."
+                cd /home/azureuser/tu-repo
                 sudo git pull origin master
 
-                echo "🧹 Eliminando contenedor si ya existe..."
-                sudo docker rm -f frontend || true
+                echo "Deteniendo el servicio frontend si ya existe..."
+                sudo docker-compose stop frontend
+                sudo docker-compose rm -f frontend
 
-                echo "Construyendo imagen desde el Dockerfile..."
-                cd frontend
-                sudo docker build -t frontend .
+                echo "Reconstruyendo y levantando solo el servicio frontend..."
+                sudo docker-compose build frontend
+                sudo docker-compose up -d frontend
 
-                echo "🚀 Ejecutando contenedor en modo detached..."
-                sudo docker run -d --restart unless-stopped \
-                  --name frontend \
-                  --network tu-repo_app-network \
-                  -p 8080:8080 \
-                  -e AUTH_API_ADDRESS=http://auth-api:8081/ \
-                  -e TODOS_API_ADDRESS=http://todos-api:8082/ \
-                  -e ZIPKIN_URL=http://zipkin:9411/api/v2/spans \
-                  frontend
-
-                echo "Frontend desplegado correctamente en la VM."
+                echo "Frontend desplegado correctamente en la VM usando docker-compose."
               EOSSH
-            displayName: 'SSH para desplegar frontend'
+            displayName: 'SSH para desplegar frontend con docker-compose'
 
