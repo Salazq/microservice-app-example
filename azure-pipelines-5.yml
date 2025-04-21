@@ -1,0 +1,59 @@
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - nginx/**
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: variable-group-taller
+
+stages:
+  - stage: Deploy
+    condition: succeeded()
+    jobs:
+      - job: DeployToVM
+        steps:
+          - task: AzureCLI@2
+            name: GetPublicIP
+            inputs:
+              azureSubscription: $(AZURE_ACCOUNT)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                PUBLIC_IP=$(az vm show \
+                  --name "$(VM_NAME)" \
+                  --resource-group "$(RESOURCE_GROUP)" \
+                  --show-details \
+                  --query "publicIps" \
+                  --output tsv)
+
+                echo "##vso[task.setvariable variable=VM_PUBLIC_IP]$PUBLIC_IP"
+                echo "IP pública obtenida: $PUBLIC_IP"
+            displayName: 'Obtener IP pública de la VM'
+
+          - script: |
+              echo "Instalando sshpass..."
+              sudo apt-get update && sudo apt-get install -y sshpass
+
+              echo "Conectando por SSH..."
+              sshpass -p $(VM_PASSWORD) ssh -o StrictHostKeyChecking=no $(VM_USERNAME)@$(VM_PUBLIC_IP) << 'EOSSH'
+                echo "Entrando al repositorio..."
+                cd /home/azureuser/tu-repo
+                sudo git pull origin master
+
+                echo "Deteniendo el servicio nginx-gateway si ya existe..."
+                sudo docker-compose -f Docker-compose.yml stop nginx-gateway || true
+                sudo docker-compose -f Docker-compose.yml rm -f nginx-gateway || true
+
+                echo "Reconstruyendo y levantando solo el servicio nginx-gateway..."
+                sudo docker-compose -f Docker-compose.yml build nginx-gateway
+                sudo docker-compose -f Docker-compose.yml up -d nginx-gateway
+
+                echo "nginx-gateway desplegado correctamente en la VM usando docker-compose."
+              EOSSH
+            displayName: 'SSH para desplegar nginx-gateway con docker-compose'
