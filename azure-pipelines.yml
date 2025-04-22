@@ -68,7 +68,7 @@ stages:
                 sudo docker-compose -f Docker-compose.yml rm -f frontend || true
 
                 echo "Reconstruyendo y levantando solo el servicio frontend..."
-                sudo docker-compose -f Docker-compose.yml build -d frontend
+                sudo docker-compose -f Docker-compose.yml build --no-cache frontend
                 sudo docker-compose -f Docker-compose.yml up -d frontend
 
                 echo "Frontend desplegado correctamente en la VM usando docker-compose."
