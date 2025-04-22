@@ -102,6 +102,7 @@ services:
       - "8000:8000"  # Puerto para el backend
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/rate_limit.conf:/etc/nginx/conf.d/rate_limiting.conf
     depends_on:
       - frontend
       - auth-api
