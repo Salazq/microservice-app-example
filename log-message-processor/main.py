@@ -30,7 +30,6 @@ if __name__ == '__main__':
     pubsub = redis.Redis(host=redis_host, port=redis_port, db=0).pubsub()
     pubsub.subscribe([redis_channel])
     for item in pubsub.listen():
-        print(" Recibido item de Redis:", item)
 
         try:
             message = json.loads(str(item['data'].decode("utf-8")))
