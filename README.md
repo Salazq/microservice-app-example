@@ -19,7 +19,15 @@ This is an application taken from [bortizf](https://github.com/bortizf/microserv
 
 ## Architecture
 
-![microservice-app-example](/arch-img/Arquitectura.png)
+![image](https://github.com/user-attachments/assets/7ba03009-f55b-4fb0-a5e2-1bd406691fdf)
+
+## Branching Strategy
+### Development (GitFlow)
+For our development workflow, we've chosen GitFlow because it provides a structured approach that helps us manage our microservices independently while maintaining a stable codebase. The clear separation between feature branches and our main branches allows our small team to work simultaneously on different components without stepping on each other's toes, while the dedicated develop branch gives us a safe integration point before pushing changes to production.
+
+### Operations (GitHub Flow)
+For our operations work, we've implemented GitHub Flow as it streamlines our infrastructure and deployment processes with a single long-lived main branch and feature branches that are short-lived and merged through pull requests. This approach supports our need for continuous deployment while ensuring all infrastructure changes are reviewed before implementation, which is perfect for our small team that needs to maintain infrastructure quality without complex release cycles or heavy process overhead.
+
 
 ## Container Configuration:
 
@@ -88,7 +96,7 @@ Additionally, containers for Redis and Zipkin are created here to store messages
 
 ## Implemented Patterns:
 
-### 1. API Gateway:
+### 1. Gateway Routing:
 The implementation can be seen in [Nginx](/nginx) where the configuration file is located, which was used to set up an nginx container that routes application requests:
 
 ```
