@@ -1,4 +1,5 @@
 services:
+  # Redis para almacenamiento en caché y mensajería
   redis:
     image: redis:7.0
     container_name: redis
@@ -7,6 +8,7 @@ services:
     networks:
       - app-network
 
+# Zipkin para trazabilidad
   zipkin:
     image: openzipkin/zipkin
     container_name: zipkin
@@ -27,7 +29,7 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      - redis
+      - redis # Se debe iniciar antes de auth-api
     networks:
       - app-network
 
@@ -52,9 +54,9 @@ services:
     environment:
       - TODO_API_PORT=8082
       - JWT_SECRET=PRFT
-      - REDIS_HOST=redis
+      - REDIS_HOST=redis #Se usa el nombre del contenedor de Redis
       - REDIS_PORT=6379
-      - REDIS_CHANNEL=log_channel
+      - REDIS_CHANNEL=log_channel #Canal de publicación y suscripción de Redis
       - ZIPKIN_URL=http://nginx:8000/zipkin
     ports:
       - "8082:8082"
@@ -77,8 +79,8 @@ services:
       - redis
     networks:
       - app-network
-    tty: true
-    stdin_open: true
+    tty: true # Para mantener el contenedor en ejecución y permitir la interacción con stdin
+    stdin_open: true # Permitir la entrada estándar para el contenedor
 
   frontend:
     build:
@@ -101,8 +103,8 @@ services:
       - "80:80"    # Puerto para el frontend
       - "8000:8000"  # Puerto para el backend
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./nginx/rate_limit.conf:/etc/nginx/conf.d/rate_limiting.conf
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf # Configuración de Nginx
+      - ./nginx/rate_limit.conf:/etc/nginx/conf.d/rate_limiting.conf  # Configuración de rate limiting
     depends_on:
       - frontend
       - auth-api
@@ -112,8 +114,10 @@ services:
     networks:
       - app-network
 
+#Red por la que se comunican los contenedores
 networks:
   app-network:
     driver: bridge
+# Red de Redis para persistencia de datos
 volumes:
   redis-data:
