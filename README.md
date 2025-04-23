@@ -200,24 +200,36 @@ To install Docker, install the necessary dependencies, and clone the repository.
 
 ## Pipelines and scripts:
 
-Eight pipelines were defined, one to deploy the infrastructure, one to tear down the infrastructure, una para nginx, y una por cada microservicio, como se puede ver a continuación:
+Eight pipelines were defined, one to deploy the infrastructure, one to tear down the infrastructure, one for nginx, and one for each microservice, as can be seen below:
 
 ![image](https://github.com/user-attachments/assets/d39561d3-8ac1-423f-8eb1-00212c561a2a)
 
-- [Infraestructura-up](https://github.com/Salazq/microservice-app-example-deployments/blob/main/azure-pipelines.yml): corre Terraform (levanta la VM) y con la nueva ip generada corre Ansible (instala dependencias y clona el repositorio)
-- [Infraestructura-down](https://github.com/Salazq/microservice-app-example-deployments/blob/main/azure-pipelines-1.yml): elimina el grupo de recursos de azure correspondiente a la VM.
+- [Infrastructure-up](https://github.com/Salazq/microservice-app-example-deployments/blob/main/azure-pipelines.yml): runs Terraform (sets up the VM) and with the newly generated IP runs Ansible (installs dependencies and clones the repository)
+- [Infrastructure-down](https://github.com/Salazq/microservice-app-example-deployments/blob/main/azure-pipelines-1.yml): removes the Azure resource group corresponding to the VM.
+- [todos-api](azure-pipelines-4.yml), [frontend](azure-pipelines.yml), [users-api](azure-pipelines-1.yml), [auth-api](azure-pipelines-2.yml), [log-message-processor](azure-pipelines-3.yml) and [nginx](azure-pipelines-5.yml): build the application in the Azure environment, access the VM via SSH, pull the repository, bring down the corresponding container, rebuild it, and bring it back up.
 
-- [todos-api](azure-pipelines-4.yml)
+## Execution
+### Local
+1. Position yourself in the root folder and run:
+```
+ docker-compose up -d     
+```
+2. Access port 80 to use the application.
 
-users-api
+### In the cloud (Azure pipelines)
+1. Create the 8 pipelines mentioned in the previous section using the corresponding "yaml" and pointing to the corresponding  repository.
+2. Create a variable group called: "variable-group-taller".
+3. Create and assign the following variables:
+```
+AZURE_ACCOUNT
+RESOURCE_GROUP
+VM_NAME
+VM_PASSWORD
+VM_USERNAME
+```
+4. Run Infrastructure-up to deploy the application and Infrastructure-down to tear it down.
+5. Each time a change is made to a microservice, the corresponding pipeline will be triggered.
 
-auth-api
-
-frontend
-
-log-message-processor
-
-nginx
 
 
 
