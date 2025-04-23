@@ -1,32 +1,95 @@
-# Integrantes:
+# Team members:
 - Juan Camilo Salazar
 - Samuel Gutierrez
 
+# Microservices Application
 
-# Aplicación de Microservicios
+This is an application taken from [bortizf](https://github.com/bortizf/microservice-app-example) based on microservices written in different programming languages or frameworks (Go, Python, Vue, Java, and NodeJS). Various modifications were made to implement two cloud patterns (API Gateway and rate limiting) and to achieve deployment with Azure using one infrastructure pipeline and five development pipelines (one for each microservice).
 
-Esta es una aplicación tomada de [bortizf](https://github.com/bortizf/microservice-app-example) basada en microservicios que están escritos en diferentes lenguajes o frameworks de programación (Go, Python, Vue, Java y NodeJS). Sobre esta se realizaron diversas modificación para implementar dos patrones cloud (API Gateway y rate limiting) y para lograr hacer un depliegue con azure con una pipeline de infraestructura y cinco de desarrollo (una para cada microservicio).
+**Note**: The workshop is divided between the development part (this repository) and the infrastructure part ([infrastructure repository](https://github.com/Salazq/microservice-app-example-deployments))
 
-**Nota**: el taller esta dividio entre la parte de desarrollo (este repositorio) y la parte de infraestructura( [repositorio de infraestructura](https://github.com/Salazq/microservice-app-example-deployments)]
+## Components
 
-## Componentes
+1. [Users API](/users-api) is a Spring Boot application. It provides user profiles. It allows you to get an individual user and all users.
+2. [Auth API](/auth-api) is a Go application that provides authorization functionality. It generates [JWT](https://jwt.io/) tokens to be used with other APIs.
+3. [TODOs API](/todos-api) is a NodeJS application that provides CRUD functionality on users' TODO records. Additionally, it logs "creation" and "deletion" operations in a [Redis](https://redis.io/) queue.
+4. [Log Message Processor](/log-message-processor) is a queue processor written in Python. Its purpose is to read messages from a Redis queue and display them in the standard output.
+5. [Frontend](/frontend) Vue application, provides the user interface.
+6. [Nginx](/nginx) Nginx API gateway. Provides access from port 80 to the application frontend and routes requests from the frontend to [Auth API](/auth-api) and [TODOs API](/todos-api).
 
-1. [Users API](/users-api) es una aplicación Spring Boot. Proporciona perfiles de usuario. Permite obtener un usuario individual y todos los usuarios.
-2. [Auth API](/auth-api) es una aplicación en Go, y proporciona funcionalidad de autorización. Genera tokens [JWT](https://jwt.io/) para ser utilizados con otras APIs.
-3. [TODOs API](/todos-api) es una aplicación NodeJS, proporciona funcionalidad CRUD sobre los registros TODOs de los usuarios. Además, registra las operaciones de "creación" y "eliminación" en una cola de [Redis](https://redis.io/).
-4. [Log Message Processor](/log-message-processor) es un procesador de colas escrito en Python. Su propósito es leer mensajes de una cola Redis y mostrarlos en la salida estándar.
-5. [Frontend](/frontend) aplicación Vue, proporciona la interfaz de usuario.
-6. [Nginx](/nginx) Api gateway de nginx. Da acceso desde el puerto 80 hacia el frontend de la aplicación y enruta las solicitudes del frontend hacia [Auth API](/auth-api) y [TODOs API](/todos-api)
-
-## Arquitectura
+## Architecture
 
 ![microservice-app-example](/arch-img/Arquitectura.png)
 
+## Container Configuration:
 
- ## Patrones implementados:
+To achieve cloud deployment, dockerfiles were created for each of the microservices. These are found within their corresponding folders. For example, for the frontend, the base node image, package installation, build, and application initialization were defined:
 
- ### 1. API Gateway:
- La implementación se puede ver en [Nginx](/nginx) donde se encuentra el archivo de configuración con el que se levantó un contenedor de nginx que enruta las solicitudes de la aplicación:
+```
+FROM node:8.17.0
+
+WORKDIR /app
+
+COPY package*.json ./  
+RUN npm install        
+
+COPY . .             
+RUN npm run build     
+
+EXPOSE 8080
+
+CMD ["npm", "start"]
+```
+
+To integrate the dockerfiles for each microservice, a [docker-compose](Docker-compose.yml) file was built where it was defined how each should be built, the variables it receives, the ports it uses, and the communication network (one was created for all containers). For example, for users-api:
+
+```
+users-api:
+  build:
+    context: ./users-api
+  container_name: users-api
+  environment:
+    - SERVER_PORT=8083
+    - JWT_SECRET=PRFT
+  ports:
+    - "8083:8083"
+  depends_on:
+    - auth-api
+  networks:
+    - app-network
+...
+
+networks:
+  app-network:
+    driver: bridge
+```
+
+Additionally, containers for Redis and Zipkin are created here to store messages and to trace operations respectively, as they are needed by the microservices:
+
+```
+ # Redis for cache storage and messaging
+ redis:
+   image: redis:7.0
+   container_name: redis
+   ports:
+     - "6379:6379"
+   networks:
+     - app-network
+
+# Zipkin for traceability
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    networks:
+      - app-network
+    ports:
+      - "9411:9411"
+```
+
+## Implemented Patterns:
+
+### 1. API Gateway:
+The implementation can be seen in [Nginx](/nginx) where the configuration file is located, which was used to set up an nginx container that routes application requests:
 
 ```
 server {
@@ -53,7 +116,8 @@ server {
     }
 ...
 ```
-Se dispusieron dos servers en diferentes puertos, el primero para el frontend y el segundo para los microservicios en back (para mayor seguridad). De esta forma el usuario accede al puerto 80 que escucha nginx y este se encarga de enrutar a la dirección puesta para el frontend, de la misma forma, el frontend se dirije a nginx cuando quiere hacer solicitudes hacia los otros microservicios y es enrutado a la dirección correcta, esta última configuración se puede ver en el [compose](Docker-compose.yml):
+
+Two servers were set up on different ports, the first for the frontend and the second for the backend microservices (for greater security). This way, the user accesses port 80 that nginx listens to, and nginx routes to the address set for the frontend. Similarly, the frontend communicates with nginx when it wants to make requests to the other microservices and is routed to the correct address. This latter configuration can be seen in the [compose](Docker-compose.yml):
 
 ```
   frontend:
@@ -62,7 +126,7 @@ Se dispusieron dos servers en diferentes puertos, el primero para el frontend y 
     container_name: frontend
     environment:
       - PORT=8080
-      # Apuntar a los servicios backend a través del puerto 8000 de Nginx
+      # Point to backend services through Nginx port 8000
       - AUTH_API_ADDRESS=http://nginx:8000
       - TODOS_API_ADDRESS=http://nginx:8000
       - USERS_API_ADDRESS=http://nginx:8000
@@ -71,17 +135,17 @@ Se dispusieron dos servers en diferentes puertos, el primero para el frontend y 
       - app-network
 ```
 
- ### 2. Rate limiting:
+### 2. Rate limiting:
 
-Para evitar el abuso de la api dispuesta por Auth-api para el login, se implementó el patron de rate limiting también con nginx, primero se definió una [zona de limitación](nginx/rate_limit.conf) de 5 solicitudes por minutos y un error de "too many request" que se lanza cuando se excede este limite:
+To prevent abuse of the API provided by Auth-api for login, the rate limiting pattern was also implemented with nginx. First, a [limitation zone](nginx/rate_limit.conf) of 5 requests per minute was defined, along with a "too many requests" error that is thrown when this limit is exceeded:
 
 ```
 limit_req_zone $http_x_forwarded_for zone=login_limit:10m rate=5r/m;
 
-limit_req_status 429;  # Error de  "Too Many Requests"
+limit_req_status 429;  # "Too Many Requests" Error
 ```
 
-Después  se utilizo un "limit_req" con la zona de limitación anteriormente definida en el enrutamiento hacia "login", además de añadir cabeceras con la IP real (porque si no se perderían entre los enrutamientos):
+Then, a "limit_req" was used with the previously defined limitation zone in the routing to "login", in addition to adding headers with the real IP (because otherwise they would be lost between routings):
 
 ```
 proxy_set_header X-Real-IP $remote_addr;
@@ -95,4 +159,65 @@ location /login {
     proxy_set_header X-Real-IP $remote_addr;
 }
 ```
+
+## Infrastructure: [infrastructure repository](https://github.com/Salazq/microservice-app-example-deployments)
+
+To deploy the containers in the cloud, it was decided to set up an Azure virtual machine with the help of Terraform, which can be seen in the [terraform folder](https://github.com/Salazq/microservice-app-example-deployments/tree/main/terraform). For this, the configurations proposed by Microsoft at https://learn.microsoft.com/en-us/azure/virtual-machines/linux/quick-create-terraform?tabs=azure-cli were used as a reference, only changing the authorization to use a fixed username and password (instead of authorization by public and private key) and opening port 80 (which is used by nginx):
+
+```
+  security_rule {
+    name                       = "HTTP"
+    priority                   = 300
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+```
+
+To install Docker and clone the repository on the virtual machine, Ansible was used. The configuration can be seen in the [ansible folder](https://github.com/Salazq/microservice-app-example-deployments/tree/main/ansible-deploy). SSH connection variables to the VM were defined as follows:
+
+```
+[azure_vm]
+0.0.0.0 ansible_user=<user> ansible_ssh_pass=<password> 
+```
+
+and three roles:
+
+```
+- hosts: azure_vm
+  become: yes
+  roles:
+    - docker_install
+    - pip_install
+    - docker_compose
+```
+
+To install Docker, install the necessary dependencies, and clone the repository.
+
+## Pipelines and scripts:
+
+Eight pipelines were defined, one to deploy the infrastructure, one to tear down the infrastructure, una para nginx, y una por cada microservicio, como se puede ver a continuación:
+
+![image](https://github.com/user-attachments/assets/d39561d3-8ac1-423f-8eb1-00212c561a2a)
+
+- [Infraestructura-up](https://github.com/Salazq/microservice-app-example-deployments/blob/main/azure-pipelines.yml): corre Terraform (levanta la VM) y con la nueva ip generada corre Ansible (instala dependencias y clona el repositorio)
+- [Infraestructura-down](https://github.com/Salazq/microservice-app-example-deployments/blob/main/azure-pipelines-1.yml): elimina el grupo de recursos de azure correspondiente a la VM.
+
+- [todos-api](azure-pipelines-4.yml)
+
+users-api
+
+auth-api
+
+frontend
+
+log-message-processor
+
+nginx
+
+
 
