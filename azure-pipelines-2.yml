@@ -82,7 +82,7 @@ stages:
                 sudo docker-compose -f Docker-compose.yml rm -f auth-api || true
 
                 echo "Reconstruyendo y levantando solo el servicio auth-api..."
-                sudo docker-compose -f Docker-compose.yml build auth-api
+                sudo docker-compose -f Docker-compose.yml build --no-cache auth-api
                 sudo docker-compose -f Docker-compose.yml up -d auth-api
 
                 echo " Auth-API desplegado correctamente en la VM usando docker-compose."
