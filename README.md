@@ -9,9 +9,14 @@ This is an application taken from [bortizf](https://github.com/bortizf/microserv
 **Note**: The workshop is divided between the development part (this repository) and the infrastructure part ([infrastructure repository](https://github.com/Salazq/microservice-app-example-deployments))
 
 
-## Architecture
+## Implemented architecture
 
 ![image](https://github.com/user-attachments/assets/7ba03009-f55b-4fb0-a5e2-1bd406691fdf)
+
+## Ideal architecture
+
+![image](https://github.com/user-attachments/assets/eefea4c6-2039-45bf-9c3e-aa24c8a91681)
+
 
 ## Branching Strategy
 ### Development (GitFlow)
