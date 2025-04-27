@@ -51,7 +51,7 @@ stages:
                 sudo docker-compose -f Docker-compose.yml rm -f nginx || true
 
                 echo "Reconstruyendo y levantando solo el servicio nginx-gateway..."
-                sudo docker-compose -f Docker-compose.yml build nginx
+                sudo docker-compose -f Docker-compose.yml build --no-cache nginx
                 sudo docker-compose -f Docker-compose.yml up -d nginx
 
                 echo "nginx-gateway desplegado correctamente en la VM usando docker-compose."
