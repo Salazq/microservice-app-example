@@ -4,18 +4,10 @@
 
 # Microservices Application
 
-This is an application taken from [bortizf](https://github.com/bortizf/microservice-app-example) based on microservices written in different programming languages or frameworks (Go, Python, Vue, Java, and NodeJS). Various modifications were made to implement two cloud patterns (API Gateway and rate limiting) and to achieve deployment with Azure using one infrastructure pipeline and five development pipelines (one for each microservice).
+This is an application taken from [bortizf](https://github.com/bortizf/microservice-app-example) based on microservices written in different programming languages or frameworks. Various modifications were made to implement two cloud patterns (API Gateway and rate limiting) and to achieve deployment with Azure using one infrastructure pipeline and five development pipelines (one for each microservice).
 
 **Note**: The workshop is divided between the development part (this repository) and the infrastructure part ([infrastructure repository](https://github.com/Salazq/microservice-app-example-deployments))
 
-## Components
-
-1. [Users API](/users-api) is a Spring Boot application. It provides user profiles. It allows you to get an individual user and all users.
-2. [Auth API](/auth-api) is a Go application that provides authorization functionality. It generates [JWT](https://jwt.io/) tokens to be used with other APIs.
-3. [TODOs API](/todos-api) is a NodeJS application that provides CRUD functionality on users' TODO records. Additionally, it logs "creation" and "deletion" operations in a [Redis](https://redis.io/) queue.
-4. [Log Message Processor](/log-message-processor) is a queue processor written in Python. Its purpose is to read messages from a Redis queue and display them in the standard output.
-5. [Frontend](/frontend) Vue application, provides the user interface.
-6. [Nginx](/nginx) Nginx API gateway. Provides access from port 80 to the application frontend and routes requests from the frontend to [Auth API](/auth-api) and [TODOs API](/todos-api).
 
 ## Architecture
 
