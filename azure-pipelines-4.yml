@@ -67,7 +67,7 @@ stages:
                 sudo docker-compose -f Docker-compose.yml rm -f todos-api || true
 
                 echo "Reconstruyendo y levantando solo el servicio todos-api..."
-                sudo docker-compose -f Docker-compose.yml build todos-api
+                sudo docker-compose -f Docker-compose.yml build --no-cache todos-api
                 sudo docker-compose -f Docker-compose.yml up -d todos-api
 
                 echo "Todos-API desplegado correctamente en la VM usando docker-compose."

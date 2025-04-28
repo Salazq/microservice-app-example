@@ -80,7 +80,7 @@ stages:
                 sudo docker-compose -f Docker-compose.yml rm -f users-api || true
 
                 echo "Reconstruyendo y levantando solo el servicio users-api..."
-                sudo docker-compose -f Docker-compose.yml build users-api
+                sudo docker-compose -f Docker-compose.yml build --no-cache users-api
                 sudo docker-compose -f Docker-compose.yml up -d users-api
 
                 echo "Users-API desplegado correctamente en la VM usando docker-compose."
